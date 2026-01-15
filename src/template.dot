@@ -1,0 +1,15 @@
+digraph hypergraph {
+// concentrate=true;
+splines=curved;
+
+// Nodes
+node [shape = circle]; {{vertices_string}};
+node [width = 0, label = ""];
+//
+
+// Hyperedges
+{{edges_multiline_string}}
+//
+
+}
+	
