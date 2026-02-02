@@ -17,34 +17,43 @@ GLOBAL_DOT_TEMPLATE(vertices, edges) = """
     splines=curved;
 
     // Vertices
-    node [shape = circle]; $vertices;
-    node [width = 0, label = ""];
+    node [shape = circle]; $vertices
 
     // Hyperedges
+    node [width = 0, label = ""];
     $edges
     }
     """
 
-function prepare_dot(dhg)
-    vertices_string = join(dhg.v_meta, " ")
+function prepare_dot(dhg, color_dict)
+    vertices_multiline_string = "\n"
+    for node_label in dhg.v_meta
+	color = get(color_dict, node_label, nothing)
+	if color != nothing
+	    vertices_multiline_string *= """$node_label [color = "$color", style = "filled"];\n""" 
+	elseif color == nothing
+	    vertices_multiline_string *= """$node_label;\n""" 
+	end
+    end
+
+    edges_num = size(dhg)[2]
     edges_multiline_string = ""
-    edges_num_read = size(dhg)[2]
     id_to_name = Dict(id => name for (id, name) in enumerate(dhg.v_meta))
-    for edge_id in 1:edges_num_read
+    for edge_id in 1:edges_num
 	edge_tail = dhg.hg_tail.he2v[edge_id]
 	edge_tail_string = join((id_to_name[id] for id in keys(edge_tail)), " ")
 	edge_head = dhg.hg_head.he2v[edge_id]
 	edge_head_string = join((id_to_name[id] for id in keys(edge_head)), " ")
 	edges_multiline_string = edges_multiline_string * EDGE_BLOCK_TEMPLATE(edge_id, edge_tail_string, edge_head_string)
     end
-    final_dot = GLOBAL_DOT_TEMPLATE(vertices_string, edges_multiline_string)
+    final_dot = GLOBAL_DOT_TEMPLATE(vertices_multiline_string, edges_multiline_string)
     open(DOT_FILENAME, "w") do io
 	write(io, final_dot)
     end
 end
 
 function prepare_test_dhg()
-    vertices_labels = ["M", "N", "P", "Q", "T", "U", "X"]
+    vertices_labels = ["M", "N", "P", "Q", "T", "U"]
     vertices_num = length(vertices_labels)
     dhg = DirectedHypergraph{Int, String}(vertices_num, 0)
     dhg.v_meta[1: vertices_num] = vertices_labels 
@@ -67,16 +76,23 @@ function prepare_test_dhg()
     vertices_head=Dict(name_to_id["U"] => 1)
     )
 
-    add_hyperedge!(
-    dhg;
-    vertices_tail=Dict(name_to_id["U"] => 1, name_to_id["T"] => 2),
-    vertices_head=Dict(name_to_id["X"] => 1)
-    )
     return dhg
 end
 
 ##
 dhg = prepare_test_dhg()
-prepare_dot(dhg)
+
+# See colors at https://graphviz.org/doc/info/colors.html
+color_dict = Dict(
+    "M" => "red",
+    "N" => "aqua",
+    "P" => "orange",
+    # "Q" => "green",
+    "T" => "lightblue",
+    "U" => "brown"
+) 
+prepare_dot(dhg, color_dict)
+
+# See layout engines at https://graphviz.org/docs/layouts/
 run(`neato -Tsvg $DOT_FILENAME -o $SVG_FILENAME`)
-run(`open $SVG_FILENAME`)
+run(`open -g $SVG_FILENAME`)
